@@ -1,7 +1,7 @@
 import numpy as np
 
-inp = np.array([717,58,846,332,266,598,137,337])
-size = np.array([1000,711])
+inp = np.array([125,157,255,55,508,323,381,437])
+size = np.array([640,480])
 inp=inp.astype(np.float64)
 
 bt = np.zeros([4])

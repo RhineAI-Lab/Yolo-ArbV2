@@ -605,14 +605,46 @@ def segments2boxes(segments):
     return xyxy2xywh(np.array(boxes))  # cls, xywh
 
 
-def resample_segments(segments, n=1000):
+def resample_segments(segments, n=500):
     # Up-sample an (n,2) segment
     for i, s in enumerate(segments):
+        s = np.concatenate((s, s[0:1, :]), axis=0)
         x = np.linspace(0, len(s) - 1, n)
         xp = np.arange(len(s))
         segments[i] = np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)]).reshape(2, -1).T  # segment xy
     return segments
 
+# Make polygons start with the highest point
+# and order with clock wise
+# Input shape : [polygons_num,edges,2(x,y)]
+# Output shape : ==Input shape
+def polygons_cw(polys):
+    ps = polys.shape
+    hpi = np.argmax(polys[..., 1::2], axis=1).reshape(polys.shape[0]) # Highest point index
+    lpi,rpi = hpi-1,hpi+1
+    np.place(lpi,lpi==-1,ps[1]-1)
+    np.place(rpi,rpi==ps[1],0)
+    lrpi = np.concatenate(([lpi], [rpi]),0).T.flatten() # Left right point by highest point
+    p1 = polys.reshape((-1,2))[hpi+np.arange(ps[0])*ps[1]].repeat(2,axis=0).reshape(-1,2,2)
+    p2 = polys.reshape((-1,2))[lrpi+np.arange(ps[0]).repeat(2)*ps[1]].reshape((-1,2,2))
+    pc = p2-p1
+    d = 90-np.arctan(pc[...,0]/pc[...,1])/math.pi*180
+    isCw = d[...,0]<d[...,1] # Is clock wise
+    polys_cw = np.zeros_like(polys)
+    for i in range(polys.shape[0]):
+        hpii = hpi[i]
+        if isCw[i]:
+            polys_cw[i,:ps[1]-hpii] = polys[i,hpii:]
+            polys_cw[i,ps[1]-hpii:] = polys[i,:hpii]
+        else:
+            polys_cw[i,:hpii+1] = polys[i,hpii::-1]
+            polys_cw[i,hpii+1:] = polys[i,:hpii-ps[1]:-1]
+    return polys_cw
+
+def parseSegmentByBox(segment,box):
+    wh = (box[:,[2,3]]-box[:,[0,1]]).reshape(-1,1,2)
+    xy = box[:,[0,1]].reshape(-1,1,2)
+    return (segment-xy)/wh
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
@@ -642,16 +674,17 @@ def clip_coords(boxes, shape):
         boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(0, shape[0])  # y1, y2
 
 
-def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
+def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, edges=0, classes=None, agnostic=False, multi_label=False,
                         labels=(), max_det=300):
     """Runs Non-Maximum Suppression (NMS) on inference results
 
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
+    ci = edges*2 + 4 # conf position
 
-    nc = prediction.shape[2] - 5  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
+    nc = prediction.shape[2] - ci -1  # number of classes
+    xc = prediction[..., ci] > conf_thres  # candidates
 
     # Checks
     assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
@@ -666,7 +699,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     merge = False  # use merge-NMS
 
     t = time.time()
-    output = [torch.zeros((0, 6), device=prediction.device)] * prediction.shape[0]
+    output = [torch.zeros((0, ci+2), device=prediction.device)] * prediction.shape[0]
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -675,10 +708,12 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]):
             l = labels[xi]
-            v = torch.zeros((len(l), nc + 5), device=x.device)
+            v = torch.zeros((len(l), nc + ci + 1), device=x.device)
             v[:, :4] = l[:, 1:5]  # box
-            v[:, 4] = 1.0  # conf
-            v[range(len(l)), l[:, 0].long() + 5] = 1.0  # cls
+            if edges:
+                v[:, 4:ci] = l[:, 5:5+edges*2]
+            v[:, ci] = 1.0  # conf
+            v[range(len(l)), l[:, 0].long() + ci + 1] = 1.0  # cls
             x = torch.cat((x, v), 0)
 
         # If none remain process next image
@@ -686,22 +721,22 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             continue
 
         # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+        x[:, ci+1:] *= x[:, ci:ci+1]  # conf = obj_conf * cls_conf
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
 
         # Detections matrix nx6 (xyxy, conf, cls)
         if multi_label:
-            i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+            i, j = (x[:, ci+1:] > conf_thres).nonzero(as_tuple=False).T
+            x = torch.cat((box[i], x[i, 4:ci], x[i, j+ci+1, None], j[:, None].float()), 1)
         else:  # best class only
-            conf, j = x[:, 5:].max(1, keepdim=True)
-            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
+            conf, j = x[:, ci+1:].max(1, keepdim=True)
+            x = torch.cat((box, x[:, 4:ci], conf, j.float()), 1)[conf.view(-1) > conf_thres]
 
         # Filter by class
         if classes is not None:
-            x = x[(x[:, 5:6] == torch.tensor(classes, device=x.device)).any(1)]
+            x = x[(x[:, ci+1:ci+2] == torch.tensor(classes, device=x.device)).any(1)]
 
         # Apply finite constraint
         # if not torch.isfinite(x).all():
@@ -715,8 +750,8 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence
 
         # Batched NMS
-        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-        boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
+        c = x[:, ci+1:ci+2] * (0 if agnostic else max_wh)  # classes
+        boxes, scores = x[:, :4] + c, x[:, ci]  # boxes (offset by class), scores
         i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]

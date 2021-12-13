@@ -173,22 +173,30 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
 
     # Transform label coordinates
     n = len(targets)
+    newp = np.zeros((n,edges,2))
     if n:
         use_segments = any(x.any() for x in segments)
         new = np.zeros((n, 4))
-        new_segments = np.zeros((n,edges,2))
         if use_segments:  # warp segments
-            # segments = resample_segments(segments)  # upsample
+            xyps = segments[:]
+            segments = resample_segments(segments)  # upsample
             for i, segment in enumerate(segments):
                 xy = np.ones((len(segment), 3))
                 xy[:, :2] = segment
                 xy = xy @ M.T  # transform
                 xy = xy[:, :2] / xy[:, 2:3] if perspective else xy[:, :2]  # perspective rescale or affine
 
-                # add segment
-                new_segments[i] = segment
                 # clip
                 new[i] = segment2box(xy, width, height)
+
+                # new poly
+                segment = xyps[i]
+                xyp = np.ones((len(segment), 3))
+                xyp[:, :2] = segment
+                xyp = xyp @ M.T  # transform
+                xyp = xyp[:, :2] / xyp[:, 2:3] if perspective else xyp[:, :2]  # perspective rescale or affine
+                newp[i] = xyp
+
 
         else:  # warp boxes
             xy = np.ones((n * 4, 3))
@@ -209,10 +217,9 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
         i = box_candidates(box1=targets[:, 1:5].T * s, box2=new.T, area_thr=0.01 if use_segments else 0.10)
         targets = targets[i]
         targets[:, 1:5] = new[i]
-        segments = np.array(segments)[i]
-        segments[:, :edges, :2] = new_segments[i]
+        newp = newp[i]
 
-    return im, targets, segments
+    return im, targets, newp
 
 
 def copy_paste(im, labels, segments, p=0.5):

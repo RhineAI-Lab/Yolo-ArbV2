@@ -90,13 +90,16 @@ class QFocalLoss(nn.Module):
 
 class ComputeLoss:
     # Compute losses
-    def __init__(self, model, autobalance=False):
+    def __init__(self, model, autobalance=False, edges=0, poly_out=0.25):
         self.sort_obj_iou = False
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
+        self.edges = edges
+        self.poly_out = poly_out
 
         # Define criteria
         BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
+        SL1poly = nn.SmoothL1Loss()
         BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
@@ -110,20 +113,22 @@ class ComputeLoss:
         det = model.module.model[-1] if is_parallel(model) else model.model[-1]  # Detect() module
         self.balance = {3: [4.0, 1.0, 0.4]}.get(det.nl, [4.0, 1.0, 0.25, 0.06, 0.02])  # P3-P7
         self.ssi = list(det.stride).index(16) if autobalance else 0  # stride 16 index
-        self.BCEcls, self.BCEobj, self.gr, self.hyp, self.autobalance = BCEcls, BCEobj, 1.0, h, autobalance
+        self.BCEcls, self.BCEobj, self.SL1poly, self.gr, self.hyp, self.autobalance = BCEcls, BCEobj, SL1poly, 1.0, h, autobalance
         for k in 'na', 'nc', 'nl', 'anchors':
             setattr(self, k, getattr(det, k))
 
-    def __call__(self, p, targets):  # predictions, targets, model
-        # TODO poly loss
-        targets = targets[:,:6]
-
+    def __call__(self, p, targets, epoch=-1):  # predictions, targets, model
         device = targets.device
-        lcls, lbox, lobj = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
-        tcls, tbox, indices, anchors = self.build_targets(p, targets)  # targets
+        lcls, lbox, lpoly, lobj = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
+        tcls, tbox, tpoly, indices, anchors = self.build_targets(p, targets)  # targets
 
         # Losses
         for i, pi in enumerate(p):  # layer index, layer predictions
+            # Poly resolve
+            if self.edges>0:
+                ppoly = pi[..., 4:self.edges * 2 + 4]
+                pi = torch.cat((pi[..., :4], pi[..., self.edges * 2 + 4:]), dim=-1)
+
             b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
@@ -137,6 +142,13 @@ class ComputeLoss:
                 pbox = torch.cat((pxy, pwh), 1)  # predicted box
                 iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
                 lbox += (1.0 - iou).mean()  # iou loss
+
+                # Poly
+                if epoch > self.hyp['start_poly']:
+                    po = self.poly_out
+                    ppoly = ppoly[b, a, gj, gi]
+                    ppoly = ppoly.sigmoid() * (1+po*2) - po
+                    lpoly += self.SL1poly(ppoly,tpoly[i])/(2*self.edges)
 
                 # Objectness
                 score_iou = iou.detach().clamp(0).type(tobj.dtype)
@@ -164,19 +176,35 @@ class ComputeLoss:
             self.balance = [x / self.balance[self.ssi] for x in self.balance]
         lbox *= self.hyp['box']
         lobj *= self.hyp['obj']
+        sp = self.hyp['start_poly']
+        # if sp>epoch and sp+100<epoch:
+        #     lpoly *= self.hyp['poly'] * epoch-sp / 100
+        # else:
+        #     lpoly *= self.hyp['poly']
+        lpoly *= self.hyp['poly']
         lcls *= self.hyp['cls']
         bs = tobj.shape[0]  # batch size
-
-        return (lbox + lobj + lcls) * bs, torch.cat((lbox, lobj, lcls)).detach()
+        return (lbox + lpoly + lobj + lcls) * bs, torch.cat((lbox, lpoly, lobj, lcls)).detach()
 
     def build_targets(self, p, targets):
+        # Poly normalize
+        edges = self.edges
+        po = self.poly_out
+        pe = edges*2+6 # poly end index
+        if edges>0:
+            targets[:, 6:pe] = (targets[:, 6:pe] - targets[:, [2, 3]].repeat((1, edges)))\
+                                          / targets[:,[4,5]].repeat((1, edges)) + 0.5
+            targets[:, 6:pe] = torch.clamp(targets[:, 6:pe],-po,1+po)
+
+
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
         na, nt = self.na, targets.shape[0]  # number of anchors, targets
-        tcls, tbox, indices, anch = [], [], [], []
-        gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
+        tcls, tbox, tpoly, indices, anch = [], [], [], [], []
+        gain = torch.ones(pe+1, device=targets.device)  # normalized to gridspace gain
         ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
         targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
+        # Make offsets
         g = 0.5  # bias
         off = torch.tensor([[0, 0],
                             [1, 0], [0, 1], [-1, 0], [0, -1],  # j,k,l,m
@@ -214,12 +242,14 @@ class ComputeLoss:
             gwh = t[:, 4:6]  # grid wh
             gij = (gxy - offsets).long()
             gi, gj = gij.T  # grid xy indices
+            poly = t[:, 6:pe]
 
             # Append
             a = t[:, 6].long()  # anchor indices
             indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  # image, anchor, grid indices
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
+            tpoly.append(poly)
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class
 
-        return tcls, tbox, indices, anch
+        return tcls, tbox, tpoly, indices, anch

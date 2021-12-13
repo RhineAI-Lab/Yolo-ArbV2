@@ -172,16 +172,21 @@ def butter_lowpass_filtfilt(data, cutoff=1500, fs=50000, order=5):
     return filtfilt(b, a, data)  # forward-backward filter
 
 
-def output_to_target(output):
+def output_to_target(output,edges=0):
     # Convert model output to target format [batch_id, class_id, x, y, w, h, conf]
     targets = []
     for i, o in enumerate(output):
-        for *box, conf, cls in o.cpu().numpy():
-            targets.append([i, cls, *list(*xyxy2xywh(np.array(box)[None])), conf])
+        for *poly, conf, cls in o.cpu().numpy():
+            if edges!=0:
+                box = list(*xyxy2xywh(np.array(poly)[None,:4]))
+                poly = list(*np.array(poly)[None,4:])
+                targets.append([i, cls, *box, *poly, conf])
+            else:
+                targets.append([i, cls, *list(*xyxy2xywh(np.array(poly)[None])), conf])
     return np.array(targets)
 
 
-def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max_size=1920, max_subplots=16):
+def plot_images(images, targets, paths=None, fname='images.jpg', names=None, conf_thres=0.25, max_size=1920, max_subplots=16):
     # Plot image grid with labels
     if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
@@ -236,14 +241,13 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
                 cls = classes[j]
                 color = colors(cls)
                 cls = names[cls] if names else cls
-                if labels or conf[j] > 0.25:  # 0.25 conf thresh
+                if labels or conf[j] > conf_thres:  # 0.25 conf thresh
                     label = f'{cls}' if labels else f'{cls} {conf[j]:.1f}'
                     annotator.box_label(box, label, color=color)
     annotator.im.save(fname)  # save
 
-def plot_images_poly(images, targets, paths=None, fname='images.jpg', edges=0, names=None, normalized=True, max_size=640, max_subplots=16):
-    # Plot image grid with labels
-
+def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None, edges=0, normalized=True, max_size=640, max_subplots=16):
+# Plot image grid with labels
     if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
     if isinstance(targets, torch.Tensor):
@@ -280,32 +284,31 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', edges=0, n
         mosaic[block_y:block_y + h, block_x:block_x + w, :] = img
         if len(targets) > 0:
             image_targets = targets[targets[:, 0] == i]
-            polys = image_targets[:, 6:edges*2+6].T
+            polys = image_targets[:, 6:edges*2+6]
             boxes = xywh2xyxy(image_targets[:, 2:6]).T
             classes = image_targets[:, 1].astype('int')
             labels = image_targets.shape[1] == edges*2+6  # labels if no conf column
             conf = None if labels else image_targets[:, edges*2+6]  # check for confidence presence (label vs pred)
             if polys.shape[1]:
                 if normalized:  # if normalized with tolerance 0.01
-                    polys[0::2] *= w  # scale to pixels
-                    polys[1::2] *= h
                     boxes[0::2] *= w
                     boxes[1::2] *= h
                 elif scale_factor < 1:  # absolute coords need scale if image scales
-                    polys *= scale_factor
                     boxes *= scale_factor
-            polys[0::2] += block_x
-            polys[1::2] += block_y
             boxes[0::2] += block_x
             boxes[1::2] += block_y
-            for j, box in enumerate(boxes.T):
+            boxesT = boxes.T
+            wh = (boxesT[:,[2, 3]] - boxesT[:,[0, 1]]).reshape(-1, 1, 2)
+            xy = boxesT[:,[0, 1]].reshape(-1, 1, 2)
+            polys = (polys.reshape(-1,edges,2)*wh+xy).reshape(-1,edges*2)
+            for j, box in enumerate(boxesT):
                 cls = int(classes[j])
                 color = colors(cls)
                 clss = names[cls] if names else cls
                 if labels or conf[j] > 0.05:  # 0.25 conf thresh
                     label = '%s' % clss if labels else '%s %.1f' % (clss, conf[j])
                     plot_one_box(box, mosaic, label=label, color=color, line_thickness=tl)
-                    plot_one_poly(polys.T[j], mosaic, color=color, line_thickness=tl+1, edges=edges)
+                    plot_one_poly(polys[j], mosaic, color=color, line_thickness=tl+1, edges=edges)
 
         # Draw image filename labels
         if paths:
