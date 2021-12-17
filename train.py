@@ -55,7 +55,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
           ):
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, val_rate, nosave, workers, freeze, = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
-        opt.resume, opt.val_rate==-1, opt.val_rate, opt.nosave, opt.workers, opt.freeze
+        opt.resume, opt.val_rate<=0, opt.val_rate, opt.nosave, opt.workers, opt.freeze
 
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -67,6 +67,10 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         with open(hyp, errors='ignore') as f:
             hyp = yaml.safe_load(f)  # load hyps dict
     LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
+
+    # Poly args
+    edges = hyp['edges']
+    poly_out = hyp['poly_out']
 
     # Save run settings
     if not evolve:
@@ -94,6 +98,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     init_seeds(1 + RANK)
     with torch_distributed_zero_first(LOCAL_RANK):
         data_dict = data_dict or check_dataset(data)  # check if None
+    data_dict['edges'] = edges
+    data_dict['poly_out'] = poly_out
     train_path, val_path = data_dict['train'], data_dict['val']
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
@@ -101,8 +107,6 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
     # Model
-    edges = data_dict['edges']
-    poly_out = data_dict['poly_out']
     check_suffix(weights, '.pt')  # check weights
     pretrained = weights.endswith('.pt')
     if pretrained:
@@ -335,7 +339,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                 mem = f'{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G'  # (GB)
                 pbar.set_description(('%10s' * 2 + '%10.4g' * 6) % (
                     f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
-                callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, opt.sync_bn, data_dict['edges'])
+                callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots, opt.sync_bn, edges)
             # end batch ------------------------------------------------------------------------------------------------
 
         # Scheduler
@@ -438,14 +442,14 @@ def parse_opt(known=False):
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default=ROOT / 'data/Phone2.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch.yaml', help='hyperparameters path')
-    parser.add_argument('--epochs', type=int, default=2000)
+    parser.add_argument('--epochs', type=int, default=50000)
     parser.add_argument('--batch-size', type=int, default=4, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
     # parser.add_argument('--noval', action='store_true', help='only validate final epoch')
-    parser.add_argument('--val_rate', type=int, default=20) # value=1 for run val each epoch  |  value=-1 for noval
+    parser.add_argument('--val_rate', type=int, default=100) # value=1 for run val each epoch  |  value=0 for noval
     parser.add_argument('--noautoanchor', action='store_true', help='disable autoanchor check')
     parser.add_argument('--evolve', type=int, nargs='?', const=300, help='evolve hyperparameters for x generations')
     parser.add_argument('--bucket', type=str, default='', help='gsutil bucket')
