@@ -641,7 +641,7 @@ def polygons_cw(polys):
             polys_cw[i,hpii+1:] = polys[i,:hpii-ps[1]:-1]
     return polys_cw
 
-def parseSegmentByBox(segment,box):
+def parse_segment_box(segment, box):
     wh = (box[:,[2,3]]-box[:,[0,1]]).reshape(-1,1,2)
     xy = box[:,[0,1]].reshape(-1,1,2)
     return (segment-xy)/wh

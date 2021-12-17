@@ -28,7 +28,7 @@ from utils.plots import plot_images_poly,plot_images
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
 from utils.general import (LOGGER, check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, xyn2xy,
-                           xywh2xyxy, xywhn2xyxy, xyxy2xywhn, segment2segmentn, polygons_cw, parseSegmentByBox)
+                           xywh2xyxy, xywhn2xyxy, xyxy2xywhn, segment2segmentn, polygons_cw, parse_segment_box)
 from utils.torch_utils import torch_distributed_zero_first
 
 # Parameters
@@ -94,7 +94,7 @@ def exif_transpose(image):
 
 
 def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=None, augment=False, cache=False, pad=0.0,
-                      rect=False, rank=-1, workers=8, image_weights=False, quad=False, prefix='', shuffle=False, edges=0, poly_out=0.25):
+                      rect=False, rank=-1, workers=8, image_weights=False, quad=False, prefix='', shuffle=False):
     if rect and shuffle:
         LOGGER.warning('WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False')
         shuffle = False
@@ -108,9 +108,7 @@ def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=Non
                                       stride=int(stride),
                                       pad=pad,
                                       image_weights=image_weights,
-                                      prefix=prefix,
-                                      edges=edges,
-                                      poly_out=poly_out)
+                                      prefix=prefix)
 
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // WORLD_SIZE, batch_size if batch_size > 1 else 0, workers])  # number of workers
@@ -382,12 +380,12 @@ class LoadImagesAndLabels(Dataset):
     cache_version = 0.6  # dataset labels *.cache version
 
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', edges=0, poly_out=0.25):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix=''):
         self.img_size = img_size
         self.augment = augment
         self.hyp = hyp
-        self.edges = edges
-        self.poly_out = poly_out
+        self.edges = hyp['edges']
+        self.poly_out = hyp['poly_out']
         self.image_weights = image_weights
         self.rect = False if image_weights else rect
         self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
@@ -598,7 +596,7 @@ class LoadImagesAndLabels(Dataset):
             segments = polygons_cw(segments)
 
         # Parse segments by boxes
-        segments = parseSegmentByBox(segments,labels[...,1:])
+        segments = parse_segment_box(segments, labels[..., 1:])
         segments = np.clip(segments,-self.poly_out,1+self.poly_out)
 
         nl = len(labels)  # number of labels

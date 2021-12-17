@@ -87,19 +87,29 @@ class QFocalLoss(nn.Module):
         else:  # 'none'
             return loss
 
+class SmoothL1LossSr(nn.SmoothL1Loss):
+    def __init__(self,smooth_range=1.0):
+        super().__init__()
+        self.sr = smooth_range
+
+    def __call__(self, p, t):
+        sr = self.sr
+        loss = super().__call__(p/sr, t/sr)*sr
+        return loss
 
 class ComputeLoss:
     # Compute losses
-    def __init__(self, model, autobalance=False, edges=0, poly_out=0.25):
+    def __init__(self, model, autobalance=False):
         self.sort_obj_iou = False
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
-        self.edges = edges
-        self.poly_out = poly_out
+        self.edges = h['edges']
+        self.poly_out = h['poly_out']
+        self.pls = h['poly_loss_smooth']
 
         # Define criteria
         BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        SL1poly = nn.SmoothL1Loss()
+        SL1poly = SmoothL1LossSr(self.pls)
         BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
@@ -144,7 +154,7 @@ class ComputeLoss:
                 lbox += (1.0 - iou).mean()  # iou loss
 
                 # Poly
-                if epoch > self.hyp['start_poly']:
+                if self.edges>0 and epoch > self.hyp['start_poly']:
                     po = self.poly_out
                     ppoly = ppoly[b, a, gj, gi]
                     ppoly = ppoly.sigmoid() * (1+po*2) - po
@@ -181,7 +191,10 @@ class ComputeLoss:
         #     lpoly *= self.hyp['poly'] * epoch-sp / 100
         # else:
         #     lpoly *= self.hyp['poly']
-        lpoly *= self.hyp['poly']
+        if sp <= epoch or epoch == -1:
+            lpoly *= self.hyp['poly']
+        else:
+            lpoly *= 0
         lcls *= self.hyp['cls']
         bs = tobj.shape[0]  # batch size
         return (lbox + lpoly + lobj + lcls) * bs, torch.cat((lbox, lpoly, lobj, lcls)).detach()
@@ -189,12 +202,12 @@ class ComputeLoss:
     def build_targets(self, p, targets):
         # Poly normalize
         edges = self.edges
-        po = self.poly_out
         pe = edges*2+6 # poly end index
-        if edges>0:
-            targets[:, 6:pe] = (targets[:, 6:pe] - targets[:, [2, 3]].repeat((1, edges)))\
-                                          / targets[:,[4,5]].repeat((1, edges)) + 0.5
-            targets[:, 6:pe] = torch.clamp(targets[:, 6:pe],-po,1+po)
+        # po = self.poly_out
+        # if edges>0:
+        #     targets[:, 6:pe] = (targets[:, 6:pe] - targets[:, [2, 3]].repeat((1, edges)))\
+        #                                   / targets[:,[4,5]].repeat((1, edges)) + 0.5
+        #     targets[:, 6:pe] = torch.clamp(targets[:, 6:pe], -po, 1+po)
 
 
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)

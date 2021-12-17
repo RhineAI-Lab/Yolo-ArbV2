@@ -164,7 +164,7 @@ def run(data,
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
     s = ('%20s' + '%11s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
     dt, p, r, f1, mp, mr, map50, map = [0.0, 0.0, 0.0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    loss = torch.zeros(3, device=device)
+    loss = torch.zeros(4, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
     pbar = tqdm(dataloader, desc=s, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')  # progress bar
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
@@ -184,13 +184,12 @@ def run(data,
 
         # Loss
         if compute_loss:
-            loss_temp = compute_loss([x.float() for x in train_out], targets)[1]  # box, obj, cls
-            loss += torch.cat((loss_temp[0:1],loss_temp[2:]))
+            loss += compute_loss([x.float() for x in train_out], targets.clone())[1]  # box, poly, obj, cls
 
         # Poly target
         targets_source = targets.clone()
         if edges>0:
-            targets = targets[:,:6]
+            targets = targets[:, :6]
 
         # NMS
         targets[:, 2:6] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
@@ -201,6 +200,10 @@ def run(data,
 
         # Metrics
         for si, pred in enumerate(out):
+
+            # With out poly
+            pred = torch.cat((pred[..., :4], pred[..., edges * 2 + 4:]), dim=-1)
+
             labels = targets[targets[:, 0] == si, 1:]
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
@@ -314,7 +317,7 @@ def run(data,
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'data/Phone2.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp4/weights/best.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp/weights/best.pt', help='model.pt path(s)')
     parser.add_argument('--batch-size', type=int, default=4, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.1, help='confidence threshold')

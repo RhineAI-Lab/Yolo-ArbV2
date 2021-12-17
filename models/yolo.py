@@ -283,8 +283,9 @@ def parse_model(d, ch, edges=0, poly_out=0.25):  # model_dict, input_channels(3)
             c2 = sum(ch[x] for x in f)
         elif m is Detect:
             args.append([ch[x] for x in f])
-            args.append(poly_out)
+            args.append(True)
             args.append(edges)
+            args.append(poly_out)
             if isinstance(args[1], int):  # number of anchors
                 args[1] = [list(range(args[1] * 2))] * len(f)
         elif m is Contract:
