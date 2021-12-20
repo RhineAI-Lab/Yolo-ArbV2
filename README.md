@@ -142,7 +142,9 @@ class SmoothL1LossSr(nn.SmoothL1Loss):
 <br/>
 值得一提的是，修复了一项原有Yolov5中对segment生成box框时的bug。<br/>
 在切割变换中，Yolov5通过在多边形上描绘2000个点，根据剩余点生成box。但是过程中遗漏了终点和起点连接的边线，这导致再切割相邻边线时，无法准确生成box框。<br/>
-<img width="700" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.png" align="center"></a>
+<div align="center">
+    <img width="700" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.png"></a>
+</div>
 <br/>
 如上图，缺少上边线，并且右边线遭到切割时，生成的box出现了错误。<br/>
 <br/>
