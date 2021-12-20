@@ -18,13 +18,13 @@ Yolo-ArbV2 在 <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> 基础
 <summary>Install</summary>
 
 [**Python>=3.6.0**](https://www.python.org/) is required with all
-[requirements.txt](https://github.com/ultralytics/yolov5/blob/master/requirements.txt) installed including
+[requirements.txt](https://github.com/HRan2004/Yolo-ArbV2/blob/main/requirements.txt) installed including
 [**PyTorch>=1.7**](https://pytorch.org/get-started/locally/):
 <!-- $ sudo apt update && apt install -y libgl1-mesa-glx libsm6 libxext6 libxrender-dev -->
 
 ```bash
-$ git clone https://github.com/HRan2004/yolov5
-$ cd yolov5
+$ git clone https://github.com/HRan2004/Yolo-ArbV2
+$ cd Yolo-ArbV2
 $ pip install -r requirements.txt
 ```
 
