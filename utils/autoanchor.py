@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import yaml
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from utils.general import LOGGER, colorstr, emojis
 
@@ -62,7 +63,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
             LOGGER.info(f'{PREFIX}Original anchors better than new anchors. Proceeding with original anchors.')
 
 
-def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen=1000, verbose=True):
+def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen=1000, verbose=True, edges=0):
     """ Creates kmeans-evolved anchors from training dataset
 
         Arguments:
@@ -110,7 +111,7 @@ def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen
         with open(dataset, errors='ignore') as f:
             data_dict = yaml.safe_load(f)  # model dict
         from utils.datasets import LoadImagesAndLabels
-        dataset = LoadImagesAndLabels(data_dict['train'], augment=True, rect=True)
+        dataset = LoadImagesAndLabels(data_dict['train'], augment=True, rect=True, edges=edges)
 
     # Get label wh
     shapes = img_size * dataset.shapes / dataset.shapes.max(1, keepdims=True)
@@ -162,3 +163,4 @@ def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen
                 print_results(k, verbose)
 
     return print_results(k)
+

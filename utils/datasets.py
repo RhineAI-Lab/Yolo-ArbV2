@@ -380,12 +380,16 @@ class LoadImagesAndLabels(Dataset):
     cache_version = 0.6  # dataset labels *.cache version
 
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix=''):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', edges=0, poly_out=0.25):
         self.img_size = img_size
         self.augment = augment
         self.hyp = hyp
-        self.edges = hyp['edges']
-        self.poly_out = hyp['poly_out']
+        if hyp:
+            self.edges = hyp['edges']
+            self.poly_out = hyp['poly_out']
+        else:
+            self.edges = edges
+            self.poly_out = poly_out
         self.image_weights = image_weights
         self.rect = False if image_weights else rect
         self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)

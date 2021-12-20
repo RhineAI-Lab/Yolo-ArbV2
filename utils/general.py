@@ -609,7 +609,7 @@ def resample_segments(segments, n=500):
     # Up-sample an (n,2) segment
     for i, s in enumerate(segments):
         s = np.concatenate((s, s[0:1, :]), axis=0)
-        x = np.linspace(0, len(s) - 1, n)
+        x = np.linspace(0, len(s) - 1, n) # Debug
         xp = np.arange(len(s))
         segments[i] = np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)]).reshape(2, -1).T  # segment xy
     return segments
@@ -628,7 +628,7 @@ def polygons_cw(polys):
     p1 = polys.reshape((-1,2))[hpi+np.arange(ps[0])*ps[1]].repeat(2,axis=0).reshape(-1,2,2)
     p2 = polys.reshape((-1,2))[lrpi+np.arange(ps[0]).repeat(2)*ps[1]].reshape((-1,2,2))
     pc = p2-p1
-    d = 90-np.arctan(pc[...,0]/pc[...,1])/math.pi*180
+    d = 90-np.arctan(pc[...,0]/pc[...,1])*180/math.pi
     isCw = d[...,0]<d[...,1] # Is clock wise
     polys_cw = np.zeros_like(polys)
     for i in range(polys.shape[0]):
