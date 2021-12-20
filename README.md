@@ -79,21 +79,15 @@ poly_loss_smooth 损失平滑范围，后期将删除该参数。由于输出结
 
 
 <details>
-<summary>Args</summary>
+<summary>Opt</summary>
 
-在hyp中新增了5项参数。
-```yaml
-edges: 4 # edges of poly for net output
-poly: 1.2  # obj loss gain (scale with pixels)
-start_poly: 0 # epoch to start use poly loss
-poly_out: 0.5 # max percent for poly out of box
-poly_loss_smooth: 0.005 # smooth scope for SmoothL1Loss
+在train.py中新增了1项参数。
+```python
+parser.add_argument('--val_rate', type=int, default=1)
 ```
-edges 多边形边数，必填。用于设置模型输出多边形信息的边数，识别四边形则为4，需与数据集一致。设置为0时，模型功能等同于YOLOv5。<br/>
-poly 多边形框损失。多边形损失权重。<br/>
-start_poly 开始poly损失的epoch。由于poly相对于box进行归一化输出，建议box准确后再进行训练poly。<br/>
-poly_out 出框量。poly可溢出box的最大比值。由于数据增强对box框的切割，实际poly位置可能溢出box。<br/>
-poly_loss_smooth 损失平滑范围，后期将删除该参数。由于输出结果归一化，使用SmoothL1Loss需减少平滑区范围。建议填写0.005。
+方便于模型初期的debug调试，使用极小型数据集，大量epoch学习时，可适量屏蔽每个epoch后的val环节，用于加速。<br/>
+设置为0则关闭val，除最后一个epoch，不会进行val。替代原有参数noval。
+设置为1则正常，每个epoch进行测试。
 </details>
 
 ## <div align="center">理论介绍</div>

@@ -28,6 +28,7 @@ runs/*
 data/*
 !data/hyps/*
 !data/images/*
+!data/phone_test_data/*
 !data/*.sh
 
 results*.csv
