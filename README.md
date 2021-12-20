@@ -1,6 +1,6 @@
 <div align="center">
 <p>
-   <img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/ResultShow.jpg"></a>
+   <img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/ResultShow.png"></a>
 </p>
 <p>
 Yolo-ArbV2 在 <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> 基础上进行二次开发。<br/>
@@ -142,7 +142,7 @@ class SmoothL1LossSr(nn.SmoothL1Loss):
 <br/>
 值得一提的是，修复了一项原有Yolov5中对segment生成box框时的bug。<br/>
 在切割变换中，Yolov5通过在多边形上描绘2000个点，根据剩余点生成box。但是过程中遗漏了终点和起点连接的边线，这导致再切割相邻边线时，无法准确生成box框。<br/>
-<img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.jpg"></a>
+<img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.png"></a>
 如上图，缺少上边线，并且右边线遭到切割时，生成的box出现了错误。<br/>
 <br/>
 解决方法也很简单，在描边前进行补充起点在终点后方即可。
