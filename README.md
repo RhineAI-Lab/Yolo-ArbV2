@@ -30,7 +30,7 @@ $ pip install -r requirements.txt
 
 </details>
 
-<details>
+<details open>
 <summary>Datasets</summary>
 数据集的准备，大体结构与YOLOv5一致。目录结构如下。<br/>
 
@@ -58,7 +58,7 @@ Yolo-ArbV2: class x1 y1 x2 y2 x3 y3 x4 y4
 
 </details>
 
-<details>
+<details open>
 <summary>Args</summary>
 
 在hyp中新增了5项参数。
@@ -78,7 +78,7 @@ poly_loss_smooth 损失平滑范围，后期将删除该参数。由于输出结
 
 
 
-<details>
+<details open>
 <summary>Opt</summary>
 
 在train.py中新增了1项参数。
@@ -92,7 +92,7 @@ parser.add_argument('--val_rate', type=int, default=1)
 
 ## <div align="center">理论介绍</div>
 
-<details>
+<details open>
 <summary>Model</summary>
 
 模型结构维持不变，仅改变模型输出层维度。后期可能适当增加输出层处理层数。<br/>
@@ -105,7 +105,7 @@ Yolo-ArbV2(edges=N): x,y,w,h,[x1,y1,...,xN,yN],conf,class1,...,classF
 
 </details>
 
-<details>
+<details open>
 <summary>Processing</summary>
 
 对于多边形信息的后处理。poly信息相对于box位置进行归一化输出。<br/>
@@ -114,7 +114,7 @@ Yolo-ArbV2(edges=N): x,y,w,h,[x1,y1,...,xN,yN],conf,class1,...,classF
 
 </details>
 
-<details>
+<details open>
 <summary>Loss</summary>
 
 损失的处理由于多边形的IOU计算复杂，效率过低。模型设计了多点距离法计算多边形损失。直接计算对应位置输出坐标与真实坐标的距离，将8个参数一同进行SmoothL1Loss损失，得出结果。<br/>
@@ -136,7 +136,7 @@ class SmoothL1LossSr(nn.SmoothL1Loss):
 </details>
 
 
-<details>
+<details open>
 <summary>Datasets mosaic</summary>
 数据增强过程中，跟随box框，共同对poly进行处理。并在最后根据poly生成准确box框（旋转变换会导致box不准确）。<br/>
 <br/>
@@ -161,7 +161,7 @@ def resample_segments(segments, n=500):
 </details>
 
 
-<details>
+<details open>
 <summary>Datasets & Loss</summary>
 为合理计算损失，在数据增强时，会有旋转翻折等情况，数据点位顺序可能错乱，所以在数据增强完毕后，要进行顺序处理。<br/>
 最终转换为由最高点为起点，顺时针旋转的多边形数据。这使得直接计算对应位置点位距离的损失方法可行了。<br/>
