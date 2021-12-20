@@ -1,0 +1,9 @@
+
+# file path
+train: data/phone_test_data/train.txt
+val:   data/phone_test_data/val.txt
+
+nc: 2 # number of classes
+
+# class names
+names: ['phone','others']

@@ -1,0 +1,9 @@
+
+# file path
+train: E:/dota_yolo/train.txt
+val:   E:/dota_yolo/val.txt
+
+nc: 16 # number of classes
+
+# class names
+names: ['small-vehicle', 'large-vehicle', 'plane', 'storage-tank', 'ship', 'harbor', 'ground-track-field', 'soccer-ball-field', 'tennis-court', 'swimming-pool', 'baseball-diamond', 'roundabout', 'basketball-court', 'bridge', 'helicopter', 'container-crane']
