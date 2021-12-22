@@ -18,13 +18,13 @@ Yolo-ArbV2 在 <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> 基础
 <summary>Install</summary>
 
 [**Python>=3.6.0**](https://www.python.org/) is required with all
-[requirements.txt](https://github.com/ultralytics/yolov5/blob/master/requirements.txt) installed including
+[requirements.txt](https://github.com/HRan2004/Yolo-ArbV2/blob/main/requirements.txt) installed including
 [**PyTorch>=1.7**](https://pytorch.org/get-started/locally/):
 <!-- $ sudo apt update && apt install -y libgl1-mesa-glx libsm6 libxext6 libxrender-dev -->
 
 ```bash
-$ git clone https://github.com/HRan2004/yolov5
-$ cd yolov5
+$ git clone https://github.com/HRan2004/Yolo-ArbV2
+$ cd Yolo-ArbV2
 $ pip install -r requirements.txt
 ```
 
@@ -142,7 +142,10 @@ class SmoothL1LossSr(nn.SmoothL1Loss):
 <br/>
 值得一提的是，修复了一项原有Yolov5中对segment生成box框时的bug。<br/>
 在切割变换中，Yolov5通过在多边形上描绘2000个点，根据剩余点生成box。但是过程中遗漏了终点和起点连接的边线，这导致再切割相邻边线时，无法准确生成box框。<br/>
-<img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.jpg"></a>
+<div align="center">
+    <img width="700" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/debug01.png"></a>
+</div>
+<br/>
 如上图，缺少上边线，并且右边线遭到切割时，生成的box出现了错误。<br/>
 <br/>
 解决方法也很简单，在描边前进行补充起点在终点后方即可。
