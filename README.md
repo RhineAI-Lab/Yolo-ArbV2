@@ -4,13 +4,17 @@
 </p>
 <p>
 Yolo-ArbV2 在 <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> 基础上进行二次开发。<br/>
-保持GT框检测功能的同时，新增了额外输出信息，用于检测输出中目标多边形的信息。这样实现了基于矩形Anchor-based多边形检测功能。
+保持GT框检测功能的同时，新增了额外输出信息，用于检测输出中目标多边形的信息。这样实现了基于矩形Anchor-based的多边形检测功能。
 </p>
 </div>
 
-## <div align="center">文档</div>
+## <div align="center">简介</div>
 
-大部分操作方法可参考 [YOLOv5 文档](https://docs.ultralytics.com) 。新增区别信息在下文会介绍。
+Yolo-ArbV2 在完全保持YOLOv5功能情况下，实现可选多边形信息输出。通过扩展输出维度，额外输出多边形顶点坐标信息，相对box框左上角，归一化至box宽高的信息实现多边形信息的输出。<br/>
+在整个多边形计算中，从数据结构，数据增强，模型结构，输出结构，坐标后处理，损失计算，NMS过滤都做了相应的调整。<br/>
+目前只支持输出指定边数（edges参数）的多边形，如果需要识别不同边数多边形，可将数据集最后一个点进行重复处理。<br/>
+<br/>
+大部分操作及使用方法可参考 [YOLOv5 文档](https://docs.ultralytics.com) 。新增区别信息在下文会介绍。
 
 ## <div align="center">快速开始</div>
 
