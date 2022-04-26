@@ -1,0 +1,9 @@
+
+# file path
+train: I:/server_data/train.txt
+val:   I:/server_data/val.txt
+
+nc: 2 # number of classes
+
+# class names
+names: ['server','others']
