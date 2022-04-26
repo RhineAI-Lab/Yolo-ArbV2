@@ -105,6 +105,7 @@ def run(data,
         dataloader=None,
         save_dir=Path(''),
         plots=True,
+        plot_msg='_',
         callbacks=Callbacks(),
         compute_loss=None,
         ):
@@ -242,9 +243,9 @@ def run(data,
 
         # Plot images
         if plots and batch_i < 3:
-            f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
+            f = save_dir / f'val{plot_msg}_batch{batch_i}_labels.jpg'  # labels
             Thread(target=plot_images_poly, args=(im, targets_source, paths, f, names, edges), daemon=True).start()
-            f = save_dir / f'val_batch{batch_i}_pred.jpg'  # predictions
+            f = save_dir / f'val{plot_msg}_batch{batch_i}_pred.jpg'  # predictions
             Thread(target=plot_images_poly, args=(im, output_to_target(out,edges), paths, f, names, edges, False), daemon=True).start()
 
     # Compute metrics
@@ -316,9 +317,9 @@ def run(data,
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default=ROOT / 'data/Phone2.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp/weights/best.pt', help='model.pt path(s)')
-    parser.add_argument('--batch-size', type=int, default=4, help='batch size')
+    parser.add_argument('--data', type=str, default=ROOT / 'data/Display2.yaml', help='dataset.yaml path')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/exp9/weights/best.pt', help='model.pt path(s)')
+    parser.add_argument('--batch-size', type=int, default=16, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.1, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='NMS IoU threshold')

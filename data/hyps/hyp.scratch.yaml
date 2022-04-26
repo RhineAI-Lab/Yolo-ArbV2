@@ -11,7 +11,7 @@ cls_pw: 1.0  # cls BCELoss positive_weight
 obj: 1.0  # obj loss gain (scale with pixels)
 obj_pw: 1.0  # obj BCELoss positive_weight
 edges: 4 # edges of poly for net output  [--POLY ARG--]
-poly: 1.2  # obj loss gain (scale with pixels)  [--POLY ARG--]
+poly: 0  # poly loss gain (scale with pixels)  [--POLY ARG--]
 start_poly: 0 # epoch to start use poly loss  [--POLY ARG--]
 poly_out: 0.5 # max percent for poly out of box  [--POLY ARG--]
 poly_loss_smooth: 0.02 # smooth scope for SmoothL1Loss  [--POLY ARG--]
