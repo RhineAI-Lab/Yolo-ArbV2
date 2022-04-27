@@ -11,9 +11,9 @@ cls_pw: 1.0  # cls BCELoss positive_weight
 obj: 1.0  # obj loss gain (scale with pixels)
 obj_pw: 1.0  # obj BCELoss positive_weight
 edges: 4 # edges of poly for net output  [--POLY ARG--]
-poly: 0  # poly loss gain (scale with pixels)  [--POLY ARG--]
+poly: 1.2  # poly loss gain (scale with pixels)  [--POLY ARG--]
 start_poly: 0 # epoch to start use poly loss  [--POLY ARG--]
-poly_out: 0.5 # max percent for poly out of box  [--POLY ARG--]
+poly_out: 0.15 # max percent for poly out of box  [--POLY ARG--]
 poly_loss_smooth: 0.02 # smooth scope for SmoothL1Loss  [--POLY ARG--]
 iou_t: 0.20  # IoU training threshold
 anchor_t: 4.0  # anchor-multiple threshold
@@ -29,6 +29,6 @@ shear: 0.2  # image shear (+/- deg)
 perspective: 0.0  # image perspective (+/- fraction), range 0-0.001
 flipud: 0.1  # image flip up-down (probability)
 fliplr: 0.5  # image flip left-right (probability)
-mosaic: 0.5  # image mosaic (probability)
+mosaic: 1.0  # image mosaic (probability)
 mixup: 0.0  # image mixup (probability)
 copy_paste: 0.1  # segment copy-paste (probability)

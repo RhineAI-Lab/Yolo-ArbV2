@@ -703,6 +703,7 @@ def load_image(self, i):
 def load_mosaic(self, index):
     # YOLOv5 4-mosaic loader. Loads 1 image + 3 random images into a 4-image mosaic
     labels4, segments4 = [], []
+    borders4, border_i = [], []
     s = self.img_size
     yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border)  # mosaic center x, y
     indices = [index] + random.choices(self.indices, k=3)  # 3 additional image indices
@@ -738,7 +739,12 @@ def load_mosaic(self, index):
         labels4.append(labels)
         segments4.extend(segments)
 
+        # Border
+        borders4.append(np.array([[padw,padh],[padw+w,padh],[padw+w,padh+h],[padw,padh+h]]))
+        border_i.append(i)
+
     # Concat/clip labels
+    borders_num = [labels.shape[0] for labels in labels4]
     labels4 = np.concatenate(labels4, 0)
     for x in (labels4[:, 1:]):
         np.clip(x, 0, 2 * s, out=x)  # clip when using random_perspective()
