@@ -11,6 +11,7 @@ import numpy as np
 
 from utils.general import LOGGER, check_version, colorstr, resample_segments, segment2box
 from utils.metrics import bbox_ioa
+from utils.plots import plot_one_poly
 
 
 class Albumentations:
@@ -121,7 +122,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     return im, ratio, (dw, dh)
 
 
-def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, scale=.1, shear=10, perspective=0.0,
+def random_perspective(im, targets=(), segments=(), borders=(), degrees=10, translate=.1, scale=.1, shear=10, perspective=0.0,
                        border=(0, 0), edges=0):
     # torchvision.transforms.RandomAffine(degrees=(-10, 10), translate=(0.1, 0.1), scale=(0.9, 1.1), shear=(-10, 10))
     # targets = [cls, xyxy]
@@ -171,6 +172,16 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
     # ax[0].imshow(im[:, :, ::-1])  # base
     # ax[1].imshow(im2[:, :, ::-1])  # warped
 
+    # Transform borders
+    for i,border in enumerate(borders):
+        xyp = np.ones((len(border), 3))
+        xyp[:, :2] = border
+        xyp = xyp @ M.T  # transform
+        xyp = xyp[:, :2] / xyp[:, 2:3] if perspective else xyp[:, :2]  # perspective rescale or affine
+        borders[i] = xyp
+        # plot_one_poly(np.concatenate(xyp), im, line_thickness=2, edges=4)
+    # cv2.imwrite('debug.jpg',im) # check border
+
     # Transform label coordinates
     n = len(targets)
     newp = np.zeros((n,edges,2))
@@ -219,7 +230,7 @@ def random_perspective(im, targets=(), segments=(), degrees=10, translate=.1, sc
         targets[:, 1:5] = new[i]
         newp = newp[i]
 
-    return im, targets, newp
+    return im, targets, newp, borders
 
 
 def copy_paste(im, labels, segments, p=0.5):
