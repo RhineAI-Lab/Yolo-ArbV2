@@ -70,8 +70,8 @@ Yolo-ArbV2: class x1 y1 x2 y2 x3 y3 x4 y4
 edges: 4 # edges of poly for net output
 poly: 1.2  # obj loss gain (scale with pixels)
 start_poly: 0 # epoch to start use poly loss
-poly_out: 0.5 # max percent for poly out of box
-poly_loss_smooth: 0.005 # smooth scope for SmoothL1Loss
+poly_out: 0.2 # max percent for poly out of box
+poly_loss_smooth: 0.01 # smooth scope for SmoothL1Loss
 ```
 edges 多边形边数，必填。用于设置模型输出多边形信息的边数，识别四边形则为4，需与数据集一致。设置为0时，模型功能等同于YOLOv5。<br/>
 poly 多边形框损失。多边形损失权重。<br/>
@@ -136,6 +136,17 @@ class SmoothL1LossRange(nn.SmoothL1Loss):
         loss = super().__call__(p/sr, t/sr)*sr
         return loss
 ```
+   
+新增PolyLoss，主要区别在于处理NaN参数，数据增强中把部分无效点位设置成NaN，此处对应屏蔽这部分涉及到的损失。
+```python
+class PolyLoss(SmoothL1LossRange):
+    def __init__(self,smooth_range=1.0):
+        super().__init__(smooth_range)
+
+    def __call__(self, p, t):
+        nni = ~torch.isnan(t) # Not NaN index
+        return super().__call__(p[nni],t[nni])   
+```
 
 </details>
 
@@ -170,6 +181,62 @@ def resample_segments(segments, n=500):
 
 <details open>
 <summary>Datasets & Loss</summary>
+由于固定多边形的点溢出图像，处理时不同于GT框，当四边形，有一个点溢出图片时，我们会发现实际在图像内的图形为五边形，所以并不能对其做适当的处理。 <br/>
+我们采用屏蔽溢出的点的做法，但仍然保持他的占位，数据增强的同时检查并设置为NaN，在后期损失计算的时候，对齐进行屏蔽。<br/>
+   
+对于特殊情况，比如：四边形在同一条边线上溢出两个点，这时可以计算出图像内部的四边形框。我们对齐做了特殊处理，让模型在局部检测时也能有良好的效果。下面为一部分代码
+```python
+# utils/general.py
+def polygons_check(polys, max_out=0.02):
+    if(polys.shape[0]>0):
+        edges = polys.shape[1]
+        if edges==4:
+            out_top    = polys[...,1]<0-max_out
+            ...
+            for i in range(polys.shape[0]):
+                poly = polys[i]
+                out_n = np.zeros(4) # top right bottom left
+                out_n[0] = out_top[i].sum()
+                ...
+
+                for j,num in enumerate(out_n):
+                    # Filter
+                    ...
+                    for j in range(len(out)):
+                        if not out[j]:
+                            continue
+                        fp = poly[j]
+                        if not out[pj(j+1)]:
+                            sp = poly[pj(j+1)]
+                        else:
+                            sp = poly[pj(j-1)]
+                        np.seterr(divide='ignore')
+                        if out_n[0] == 2:
+                            tp = [0,0]
+                            tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                        elif out_n[1] == 2:
+                            tp = [1,0]
+                            tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                        elif out_n[2] == 2:
+                            tp = [0,1]
+                            tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                        else:
+                            tp = [0,0]
+                            tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                        polys[i,j]=tp
+
+                    # Fresh out side
+                    ...
+
+        nan = float('nan')
+        polys[polys[...,0]<-max_out] = [nan,nan]
+        polys[polys[...,1]<-max_out] = [nan,nan]
+        polys[polys[...,0]>1+max_out] = [nan,nan]
+        polys[polys[...,1]>1+max_out] = [nan,nan]
+    return polys
+```
+   
+   
 为合理计算损失，在数据增强时，会有旋转翻折等情况，数据点位顺序可能错乱，所以在数据增强完毕后，要进行顺序处理。<br/>
 最终转换为由最高点为起点，顺时针旋转的多边形数据。这使得直接计算对应位置点位距离的损失方法可行了。<br/>
 以下为比较简洁的批量实现方式
