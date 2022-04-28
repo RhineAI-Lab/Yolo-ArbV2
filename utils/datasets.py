@@ -588,7 +588,7 @@ class LoadImagesAndLabels(Dataset):
                 labels[:, 1:] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
                 segments = [xyn2xy(x, w, h, pad[0], pad[1]) for x in segments]
             if self.augment:
-                img, labels, segments = random_perspective(img, labels, segments,
+                img, labels, segments, _ = random_perspective(img, labels, segments, None,
                                                  degrees=hyp['degrees'],
                                                  translate=hyp['translate'],
                                                  scale=hyp['scale'],

@@ -173,14 +173,15 @@ def random_perspective(im, targets=(), segments=(), borders=(), degrees=10, tran
     # ax[1].imshow(im2[:, :, ::-1])  # warped
 
     # Transform borders
-    for i,border in enumerate(borders):
-        xyp = np.ones((len(border), 3))
-        xyp[:, :2] = border
-        xyp = xyp @ M.T  # transform
-        xyp = xyp[:, :2] / xyp[:, 2:3] if perspective else xyp[:, :2]  # perspective rescale or affine
-        borders[i] = xyp
-        # plot_one_poly(np.concatenate(xyp), im, line_thickness=2, edges=4)
-    # cv2.imwrite('debug.jpg',im) # check border
+    if borders:
+        for i,border in enumerate(borders):
+            xyp = np.ones((len(border), 3))
+            xyp[:, :2] = border
+            xyp = xyp @ M.T  # transform
+            xyp = xyp[:, :2] / xyp[:, 2:3] if perspective else xyp[:, :2]  # perspective rescale or affine
+            borders[i] = xyp
+            # plot_one_poly(np.concatenate(xyp), im, line_thickness=2, edges=4)
+        # cv2.imwrite('debug.jpg',im) # check border
 
     # Transform label coordinates
     n = len(targets)
