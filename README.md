@@ -124,9 +124,9 @@ Yolo-ArbV2(edges=N): x,y,w,h,[x1,y1,...,xN,yN],conf,class1,...,classF
 损失的处理由于多边形的IOU计算复杂，效率过低。模型设计了多点距离法计算多边形损失。直接计算对应位置输出坐标与真实坐标的距离，将8个参数一同进行SmoothL1Loss损失，得出结果。<br/>
 为避免点位顺序不同导致的损失异常，模型在导入数据数据增强后（可能包含旋转影响顺序），会自动将数据集处理成，从最高点开始顺时针点位排序的数据集。<br/>
 <br/>
-新增了SmoothL1LossSr，可自定义损失的平滑范围，提高精确度。
+新增了SmoothL1LossRange，可自定义损失的平滑范围，提高精确度。
 ```python
-class SmoothL1LossSr(nn.SmoothL1Loss):
+class SmoothL1LossRange(nn.SmoothL1Loss):
     def __init__(self,smooth_range=1.0):
         super().__init__()
         self.sr = smooth_range

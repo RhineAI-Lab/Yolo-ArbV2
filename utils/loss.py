@@ -87,8 +87,8 @@ class QFocalLoss(nn.Module):
         else:  # 'none'
             return loss
 
-class SmoothL1LossSr(nn.SmoothL1Loss):
-    def __init__(self,smooth_range=1.0):
+class SmoothL1LossRange(nn.SmoothL1Loss):
+    def __init__(self,smooth_range):
         super().__init__()
         self.sr = smooth_range
 
@@ -96,6 +96,14 @@ class SmoothL1LossSr(nn.SmoothL1Loss):
         sr = self.sr
         loss = super().__call__(p/sr, t/sr)*sr
         return loss
+
+class PolyLoss(SmoothL1LossRange):
+    def __init__(self,smooth_range=1.0):
+        super().__init__(smooth_range)
+
+    def __call__(self, p, t):
+        nni = ~torch.isnan(t) # Not NaN index
+        return super().__call__(p[nni],t[nni])
 
 class ComputeLoss:
     # Compute losses
@@ -109,7 +117,7 @@ class ComputeLoss:
 
         # Define criteria
         BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        SL1poly = SmoothL1LossSr(self.pls)
+        SL1poly = PolyLoss(self.pls)
         BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
@@ -154,7 +162,7 @@ class ComputeLoss:
                 lbox += (1.0 - iou).mean()  # iou loss
 
                 # Poly
-                if self.edges>0 and epoch > self.hyp['start_poly']:
+                if self.edges>0 and epoch >= self.hyp['start_poly']:
                     po = self.poly_out
                     ppoly = ppoly[b, a, gj, gi]
                     ppoly = ppoly.sigmoid() * (1+po*2) - po

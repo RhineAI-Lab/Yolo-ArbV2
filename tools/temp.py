@@ -1,9 +1,0 @@
-import numpy as np
-import math
-
-a = np.array([9999999999999999999999999999999999999999999.9])
-b = np.array([0.000000000000000000000000000000000000000001])
-
-c = np.arctan(a/b)
-
-print(c)
