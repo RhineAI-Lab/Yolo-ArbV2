@@ -310,7 +310,7 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
                     label = '%s' % clss if labels else '%s %.1f' % (clss, conf[j])
                     if show_index:
                         label = str(j)
-                    plot_one_box(box, mosaic, label=label, color=color, line_thickness=tl)
+                    plot_one_box(box, mosaic, label=label, color=(200,120,120), line_thickness=tl)
                     plot_one_poly(polys[j], polys_n[j], mosaic, color=color, line_thickness=tl+1, edges=edges)
 
         # Draw image filename labels

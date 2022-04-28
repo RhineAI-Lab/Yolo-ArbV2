@@ -602,6 +602,18 @@ class LoadImagesAndLabels(Dataset):
 
         # Parse segments by boxes
         segments = parse_segment_box(segments, labels[..., 1:])
+
+        # Parse out rect
+        load_mode = 2
+        save_dir = 'runs/'
+        if load_mode==1:
+           np.save(save_dir+'segments', segments)
+           np.save(save_dir+'labels', labels)
+           np.save(save_dir+'img', img)
+        elif load_mode==2:
+           segments = np.load(save_dir+'segments.npy')
+           labels = np.load(save_dir+'labels.npy')
+           img = np.load(save_dir+'img.npy')
         segments = polygons_check(segments)
 
         nl = len(labels)  # number of labels
@@ -609,7 +621,7 @@ class LoadImagesAndLabels(Dataset):
             labels[:, 1:5] = xyxy2xywhn(labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1E-3)
             # segments = segment2segmentn(segments, w=img.shape[1], h=img.shape[0])
 
-        if self.augment:
+        if self.augment and load_mode==0:
             # Albumentations
             img, labels = self.albumentations(img, labels)
             nl = len(labels)  # update after albumentations
