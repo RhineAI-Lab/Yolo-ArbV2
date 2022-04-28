@@ -617,14 +617,14 @@ def resample_segments(segments, n=500):
 
 # check points out of box
 # when two point out
-def polygons_check(polys):
+def polygons_check(polys, max_out=0.2):
     if(polys.shape[0]>0):
         edges = polys.shape[1]
         if edges==4:
-            out_top    = polys[...,1]<0
-            out_left   = polys[...,0]<0
-            out_bottom = polys[...,1]>1
-            out_right  = polys[...,0]>1
+            out_top    = polys[...,1]<0-max_out
+            out_left   = polys[...,0]<0-max_out
+            out_bottom = polys[...,1]>1+max_out
+            out_right  = polys[...,0]>1+max_out
             for i in range(polys.shape[0]):
                 poly = polys[i]
                 out_n = np.zeros(4) # top right bottom left
@@ -655,6 +655,7 @@ def polygons_check(polys):
                         return 0
                     else:
                         return cj
+                print("CHANGE: "+str(i))
                 for j in range(len(out)):
                     if not out[j]:
                         continue
@@ -677,10 +678,11 @@ def polygons_check(polys):
                         tp = [0,0]
                         tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
                     polys[i,j]=tp
-        polys[polys[...,0]<0] = [-1,-1]
-        polys[polys[...,1]<0] = [-1,-1]
-        polys[polys[...,0]>1] = [-1,-1]
-        polys[polys[...,1]>1] = [-1,-1]
+        nan = float('nan')
+        polys[polys[...,0]<-max_out] = [nan,nan]
+        polys[polys[...,1]<-max_out] = [nan,nan]
+        polys[polys[...,0]>1+max_out] = [nan,nan]
+        polys[polys[...,1]>1+max_out] = [nan,nan]
     return polys
 
 

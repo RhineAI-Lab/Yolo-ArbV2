@@ -11,6 +11,7 @@ from pathlib import Path
 import cv2
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy
 import numpy as np
 import pandas as pd
 import seaborn as sn
@@ -246,7 +247,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, con
                     annotator.box_label(box, label, color=color)
     annotator.im.save(fname)  # save
 
-def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None, edges=0, normalized=True, max_size=640, max_subplots=16):
+def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None, edges=0, normalized=True, show_index=False, max_size=640, max_subplots=16):
     # Plot image grid with labels
     if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
@@ -284,12 +285,12 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
         mosaic[block_y:block_y + h, block_x:block_x + w, :] = img
         if len(targets) > 0:
             image_targets = targets[targets[:, 0] == i]
-            polys = image_targets[:, 6:edges*2+6]
+            polys_n = image_targets[:, 6:edges*2+6]
             boxes = xywh2xyxy(image_targets[:, 2:6]).T
             classes = image_targets[:, 1].astype('int')
             labels = image_targets.shape[1] == edges*2+6  # labels if no conf column
             conf = None if labels else image_targets[:, edges*2+6]  # check for confidence presence (label vs pred)
-            if polys.shape[1]:
+            if polys_n.shape[1]:
                 if normalized:  # if normalized with tolerance 0.01
                     boxes[0::2] *= w
                     boxes[1::2] *= h
@@ -300,15 +301,17 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
             boxesT = boxes.T
             wh = (boxesT[:,[2, 3]] - boxesT[:,[0, 1]]).reshape(-1, 1, 2)
             xy = boxesT[:,[0, 1]].reshape(-1, 1, 2)
-            polys = (polys.reshape(-1,edges,2)*wh+xy).reshape(-1,edges*2)
+            polys = (polys_n.reshape(-1,edges,2)*wh+xy).reshape(-1,edges*2)
             for j, box in enumerate(boxesT):
                 cls = int(classes[j])
                 color = colors(cls)
                 clss = names[cls] if names else cls
                 if labels or conf[j] > 0.05:  # 0.25 conf thresh
                     label = '%s' % clss if labels else '%s %.1f' % (clss, conf[j])
+                    if show_index:
+                        label = str(j)
                     plot_one_box(box, mosaic, label=label, color=color, line_thickness=tl)
-                    plot_one_poly(polys[j], mosaic, color=color, line_thickness=tl+1, edges=edges)
+                    plot_one_poly(polys[j], polys_n[j], mosaic, color=color, line_thickness=tl+1, edges=edges)
 
         # Draw image filename labels
         if paths:
@@ -318,7 +321,7 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
                         lineType=cv2.LINE_AA)
 
         # Image border
-        cv2.rectangle(mosaic, (block_x, block_y), (block_x + w, block_y + h), (255, 255, 255), thickness=3)
+        # cv2.rectangle(mosaic, (block_x, block_y), (block_x + w, block_y + h), (255, 255, 255), thickness=3)
 
     if fname:
         r = min(1280. / max(h, w) / ns, 1.0)  # ratio to limit image size
@@ -327,14 +330,20 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
         Image.fromarray(mosaic).save(fname)  # PIL save
     return mosaic
 
-def plot_one_poly(x, img, color=None, line_thickness=3, edges=4):
+def plot_one_poly(x, xn, img, color=None, line_thickness=3, edges=4):
     # Plots one bounding box on image img
     color = color or [random.randint(0, 255) for _ in range(3)]
     for i in range(edges):
+        if math.isnan(xn[i*2]):
+            continue
         pt1 = (int(x[i*2]),int(x[i*2+1]))
         if i!=edges-1:
+            if math.isnan(xn[i*2+2]):
+                continue
             pt2 = (int(x[i*2+2]),int(x[i*2+3]))
         else:
+            if math.isnan(xn[0]):
+                continue
             pt2 = (int(x[0]),int(x[1]))
         cv2.line(img,pt1,pt2,color,thickness=line_thickness, lineType=cv2.LINE_AA)
 

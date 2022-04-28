@@ -1,6 +1,5 @@
 import argparse
 import os
-import random
 import sys
 from pathlib import Path
 
@@ -19,8 +18,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from utils.datasets import create_dataloader
 from utils.general import (LOGGER, check_dataset, check_file, check_img_size,
-                           check_yaml, colorstr, increment_path,
-                           labels_to_image_weights,)
+                           check_yaml, colorstr, increment_path,)
 from utils.torch_utils import select_device, torch_distributed_zero_first
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
@@ -65,12 +63,6 @@ def mosaic_test(hyp,opt,device):
     # Start training
     for epoch in range(0, epochs):  # epoch ------------------------------------------------------------------
 
-        # Update image weights (optional, single-GPU only)
-        if opt.image_weights:
-            cw = 0
-            iw = labels_to_image_weights(dataset.labels, nc=nc, class_weights=cw)  # image weights
-            dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
-
         pbar = enumerate(train_loader)
         LOGGER.info(('\n' + '%10s' * 8) % ('Epoch', 'gpu_mem', 'box', 'poly', 'obj', 'cls', 'labels', 'img_size'))
 
@@ -80,7 +72,7 @@ def mosaic_test(hyp,opt,device):
 
             imgs = imgs.to(device, non_blocking=True).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
             f = save_dir / f'epoch{epoch}_batch{i}.jpg'
-            plot_images_poly(imgs, targets, paths, f, None, edges)
+            plot_images_poly(imgs, targets, paths, f, None, edges, show_index=True)
 
             # end batch ------------------------------------------------------------------------------------------------
         # end epoch ----------------------------------------------------------------------------------------------------
@@ -95,8 +87,8 @@ def parse_opt(known=False):
     parser.add_argument('--data', type=str, default=ROOT / 'data/Server2.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=1)
-    parser.add_argument('--max', type=int, default=3)
-    parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
+    parser.add_argument('--max', type=int, default=1)
+    parser.add_argument('--batch-size', type=int, default=1, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
@@ -136,7 +128,7 @@ def parse_opt(known=False):
 
 def main(opt):
 
-    # Resume
+    # Check
     opt.data, opt.cfg, opt.hyp, opt.weights, opt.project = \
         check_file(opt.data), check_yaml(opt.cfg), check_yaml(opt.hyp), str(opt.weights), str(opt.project)  # checks
     assert len(opt.cfg) or len(opt.weights), 'either --cfg or --weights must be specified'

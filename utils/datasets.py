@@ -602,7 +602,7 @@ class LoadImagesAndLabels(Dataset):
 
         # Parse segments by boxes
         segments = parse_segment_box(segments, labels[..., 1:])
-        # segments = polygons_check(segments)
+        segments = polygons_check(segments)
 
         nl = len(labels)  # number of labels
         if nl:
