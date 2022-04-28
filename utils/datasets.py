@@ -28,7 +28,8 @@ from utils.plots import plot_images_poly,plot_images
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
 from utils.general import (LOGGER, check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, xyn2xy,
-                           xywh2xyxy, xywhn2xyxy, xyxy2xywhn, segment2segmentn, polygons_cw, parse_segment_box)
+                           xywh2xyxy, xywhn2xyxy, xyxy2xywhn, segment2segmentn, polygons_cw, parse_segment_box,
+                           polygons_check)
 from utils.torch_utils import torch_distributed_zero_first
 
 # Parameters
@@ -601,7 +602,7 @@ class LoadImagesAndLabels(Dataset):
 
         # Parse segments by boxes
         segments = parse_segment_box(segments, labels[..., 1:])
-        segments = np.clip(segments,-self.poly_out,1+self.poly_out)
+        # segments = polygons_check(segments)
 
         nl = len(labels)  # number of labels
         if nl:

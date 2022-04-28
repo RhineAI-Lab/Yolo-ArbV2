@@ -615,6 +615,75 @@ def resample_segments(segments, n=500):
         segments[i] = np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)]).reshape(2, -1).T  # segment xy
     return segments
 
+# check points out of box
+# when two point out
+def polygons_check(polys):
+    if(polys.shape[0]>0):
+        edges = polys.shape[1]
+        if edges==4:
+            out_top    = polys[...,1]<0
+            out_left   = polys[...,0]<0
+            out_bottom = polys[...,1]>1
+            out_right  = polys[...,0]>1
+            for i in range(polys.shape[0]):
+                poly = polys[i]
+                out_n = np.zeros(4) # top right bottom left
+                out_n[0] = out_top[i].sum()
+                out_n[1] = out_right[i].sum()
+                out_n[2] = out_bottom[i].sum()
+                out_n[3] = out_left[i].sum()
+
+                # check out edges
+                if (out_n[...] != 0).sum()!=1 or out_n.sum()!=2:
+                    continue
+                if out_n[0] == 2:
+                    out = out_top[i]
+                elif out_n[1] == 2:
+                    out = out_right[i]
+                elif out_n[2] == 2:
+                    out = out_bottom[i]
+                else:
+                    out = out_left[i]
+                if out[1]==True and out[3]==True:
+                    continue
+                if out[0]==True and out[2]==True:
+                    continue
+                def pj(cj):
+                    if cj == -1:
+                        return len(out)-1
+                    elif cj == len(out):
+                        return 0
+                    else:
+                        return cj
+                for j in range(len(out)):
+                    if not out[j]:
+                        continue
+                    fp = poly[j]
+                    if not out[pj(j+1)]:
+                        sp = poly[pj(j+1)]
+                    else:
+                        sp = poly[pj(j-1)]
+                    np.seterr(divide='ignore')
+                    if out_n[0] == 2:
+                        tp = [0,0]
+                        tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                    elif out_n[1] == 2:
+                        tp = [1,0]
+                        tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                    elif out_n[2] == 2:
+                        tp = [0,1]
+                        tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                    else:
+                        tp = [0,0]
+                        tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                    polys[i,j]=tp
+        polys[polys[...,0]<0] = [-1,-1]
+        polys[polys[...,1]<0] = [-1,-1]
+        polys[polys[...,0]>1] = [-1,-1]
+        polys[polys[...,1]>1] = [-1,-1]
+    return polys
+
+
 # Make polygons start with the highest point
 # and order with clock wise
 # Input shape : [polygons_num,edges,2(x,y)]
