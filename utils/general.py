@@ -617,7 +617,7 @@ def resample_segments(segments, n=500):
 
 # check points out of box
 # when two point out
-def polygons_check(polys, max_out=0.2):
+def polygons_check(polys, max_out=0.02):
     if(polys.shape[0]>0):
         edges = polys.shape[1]
         if edges==4:
@@ -633,51 +633,62 @@ def polygons_check(polys, max_out=0.2):
                 out_n[2] = out_bottom[i].sum()
                 out_n[3] = out_left[i].sum()
 
-                # check out edges
-                if (out_n[...] != 0).sum()!=1 or out_n.sum()!=2:
-                    continue
-                if out_n[0] == 2:
-                    out = out_top[i]
-                elif out_n[1] == 2:
-                    out = out_right[i]
-                elif out_n[2] == 2:
-                    out = out_bottom[i]
-                else:
-                    out = out_left[i]
-                if out[1]==True and out[3]==True:
-                    continue
-                if out[0]==True and out[2]==True:
-                    continue
-                def pj(cj):
-                    if cj == -1:
-                        return len(out)-1
-                    elif cj == len(out):
-                        return 0
+                for j,num in enumerate(out_n):
+                    if num!=2:continue
+                    if j==0:
+                        out = out_top[i]
+                    elif j==1:
+                        out = out_right[i]
+                    elif j==2:
+                        out = out_bottom[i]
                     else:
-                        return cj
-                print("CHANGE: "+str(i))
-                for j in range(len(out)):
-                    if not out[j]:
+                        out = out_left[i]
+                    if out[1]==True and out[3]==True:
                         continue
-                    fp = poly[j]
-                    if not out[pj(j+1)]:
-                        sp = poly[pj(j+1)]
-                    else:
-                        sp = poly[pj(j-1)]
-                    np.seterr(divide='ignore')
-                    if out_n[0] == 2:
-                        tp = [0,0]
-                        tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
-                    elif out_n[1] == 2:
-                        tp = [1,0]
-                        tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
-                    elif out_n[2] == 2:
-                        tp = [0,1]
-                        tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
-                    else:
-                        tp = [0,0]
-                        tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
-                    polys[i,j]=tp
+                    if out[0]==True and out[2]==True:
+                        continue
+
+                    def pj(cj):
+                        if cj == -1:
+                            return len(out)-1
+                        elif cj == len(out):
+                            return 0
+                        else:
+                            return cj
+                    for j in range(len(out)):
+                        if not out[j]:
+                            continue
+                        fp = poly[j]
+                        if not out[pj(j+1)]:
+                            sp = poly[pj(j+1)]
+                        else:
+                            sp = poly[pj(j-1)]
+                        np.seterr(divide='ignore')
+                        if out_n[0] == 2:
+                            tp = [0,0]
+                            tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                        elif out_n[1] == 2:
+                            tp = [1,0]
+                            tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                        elif out_n[2] == 2:
+                            tp = [0,1]
+                            tp[0] = sp[0]+(fp[0]-sp[0])*(tp[1]-sp[1])/(fp[1]-sp[1])
+                        else:
+                            tp = [0,0]
+                            tp[1] = sp[1]+(fp[1]-sp[1])*(tp[0]-sp[0])/(fp[0]-sp[0])
+                        polys[i,j]=tp
+
+                    # Fresh out side
+                    poly = polys[i]
+                    out_top[i] = poly[..., 1] < 0 - max_out
+                    out_left[i] = poly[..., 0] < 0 - max_out
+                    out_bottom[i] = poly[..., 1] > 1 + max_out
+                    out_right[i] = poly[..., 0] > 1 + max_out
+                    out_n[0] = out_top[i].sum()
+                    out_n[1] = out_right[i].sum()
+                    out_n[2] = out_bottom[i].sum()
+                    out_n[3] = out_left[i].sum()
+
         nan = float('nan')
         polys[polys[...,0]<-max_out] = [nan,nan]
         polys[polys[...,1]<-max_out] = [nan,nan]

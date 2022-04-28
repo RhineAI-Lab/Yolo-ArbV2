@@ -24,7 +24,6 @@ import yaml
 from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import DataLoader, Dataset, dataloader, distributed
 from tqdm import tqdm
-from utils.plots import plot_images_poly,plot_images
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
 from utils.general import (LOGGER, check_dataset, check_requirements, check_yaml, clean_str, segments2boxes, xyn2xy,
@@ -604,9 +603,9 @@ class LoadImagesAndLabels(Dataset):
         segments = parse_segment_box(segments, labels[..., 1:])
 
         # Parse out rect
-        load_mode = 2
+        load_mode = 0
         save_dir = 'runs/'
-        if load_mode==1:
+        if load_mode==0:
            np.save(save_dir+'segments', segments)
            np.save(save_dir+'labels', labels)
            np.save(save_dir+'img', img)

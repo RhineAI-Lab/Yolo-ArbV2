@@ -321,7 +321,7 @@ def plot_images_poly(images, targets, paths=None, fname='images.jpg', names=None
                         lineType=cv2.LINE_AA)
 
         # Image border
-        # cv2.rectangle(mosaic, (block_x, block_y), (block_x + w, block_y + h), (255, 255, 255), thickness=3)
+        cv2.rectangle(mosaic, (block_x, block_y), (block_x + w, block_y + h), (255, 255, 255), thickness=3)
 
     if fname:
         r = min(1280. / max(h, w) / ns, 1.0)  # ratio to limit image size
