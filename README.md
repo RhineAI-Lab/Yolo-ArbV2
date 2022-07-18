@@ -1,10 +1,10 @@
 <div align="center">
 <p>
-   <img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/ResultShow.png"></a>
-</p>
-<p>
 Yolo-ArbV2 在 <a href="https://github.com/ultralytics/yolov5">YOLOv5</a> 基础上进行二次开发。<br/>
 保持GT框检测功能的同时，新增了额外输出信息，用于检测输出中目标多边形的信息。这样实现了基于矩形Anchor-based的多边形检测功能。
+</p>
+<p>
+   <img width="850" src="https://github.com/HRan2004/Yolo-ArbV2/blob/main/data/images/ResultShow.png"></a>
 </p>
 </div>
 
